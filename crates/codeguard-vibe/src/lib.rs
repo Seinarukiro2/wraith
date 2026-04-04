@@ -101,16 +101,56 @@ fn check_hardcoded_secrets(info: &FileInfo, diags: &mut Vec<Diagnostic>) {
             continue;
         }
 
-        // Check 1: variable name matches secret pattern (original VC001)
-        let name_match = SECRET_NAME_RE.is_match(&assign.target);
+        // === Layered secret detection (Saha 2020, Argus 2512.08326, arxiv 2307.00714) ===
 
-        // Check 2: high-entropy string (Shannon entropy > 4.5, length >= 16)
-        let entropy_match = unquoted.len() >= 16 && shannon_entropy(unquoted) > 4.5;
-
-        // Check 3: known secret prefixes (sk-, ghp_, AKIA, eyJ for JWT)
+        // Level 1: Known prefix → highest confidence (Gitleaks format-specific approach)
         let prefix_match = has_secret_prefix(unquoted);
 
-        if !name_match && !entropy_match && !prefix_match {
+        // Level 2: Character class analysis (Saha et al. 2020)
+        let has_whitespace = unquoted.contains(' ') || unquoted.contains('\n') || unquoted.contains('\t');
+        let has_dict_words = contains_dictionary_words(unquoted);
+        let is_secret_charset = unquoted.len() >= 8
+            && unquoted.bytes().filter(|b| b.is_ascii_alphanumeric() || b"+-_/=.%".contains(b)).count() as f64
+                / unquoted.len() as f64 > 0.95;
+        let entropy = if unquoted.len() >= 8 { shannon_entropy(unquoted) } else { 0.0 };
+
+        // Level 3: Structural context — suffix-based exclusion (arxiv 2307.00714)
+        let is_template_var = is_template_suffix(&assign.target);
+
+        // Level 4: Name-based detection
+        let name_match = SECRET_NAME_RE.is_match(&assign.target);
+
+        // Scoring decision
+        let confidence: f64;
+        let reason: &str;
+
+        if prefix_match {
+            // Known secret prefix: always flag
+            confidence = 0.95;
+            reason = "known secret prefix";
+        } else if is_template_var {
+            // Prompt/template variables: skip regardless of entropy
+            continue;
+        } else if name_match && !has_whitespace && is_secret_charset && entropy > 3.5 {
+            // Secret name + no whitespace + secret-like charset + decent entropy
+            confidence = 0.85;
+            reason = "secret variable with high-entropy value";
+        } else if name_match && has_whitespace {
+            // Secret name but value has whitespace → likely a message/template, skip
+            continue;
+        } else if name_match && has_dict_words {
+            // Secret name but value is English text → skip (error messages, descriptions)
+            continue;
+        } else if name_match && !has_whitespace && !has_dict_words {
+            // Secret name + no whitespace + not English text → likely a secret
+            // Covers short passwords like "hunter2", API keys like "abc123"
+            confidence = 0.7;
+            reason = "secret variable name";
+        } else if !name_match && !has_whitespace && is_secret_charset && entropy > 4.5 {
+            // No secret name but very high entropy, no whitespace, secret charset
+            confidence = 0.6;
+            reason = "high-entropy string";
+        } else {
             continue;
         }
 
@@ -118,13 +158,7 @@ fn check_hardcoded_secrets(info: &FileInfo, diags: &mut Vec<Diagnostic>) {
 
         let env_var = assign.target.to_uppercase();
         let replacement = make_environ_ref(&env_var);
-        let suggestion_text = if name_match {
-            format!("use {} instead", replacement)
-        } else if prefix_match {
-            format!("looks like a secret token (prefix match); use {} instead", replacement)
-        } else {
-            format!("high-entropy string (likely a secret); use {} instead", replacement)
-        };
+        let suggestion_text = format!("{reason}; use {} instead", replacement);
         let fix = assign.value_span.as_ref().map(|vs| TextEdit {
             start_line: vs.start_line,
             start_col: vs.start_col,
@@ -138,13 +172,8 @@ fn check_hardcoded_secrets(info: &FileInfo, diags: &mut Vec<Diagnostic>) {
             assign.span.clone(),
             format!("hardcoded secret: {} = {}", assign.target, truncate_secret(value)),
         )
-        .with_suggestion(suggestion_text);
-
-        if prefix_match {
-            d = d.with_confidence(0.95);
-        } else if !name_match && entropy_match {
-            d = d.with_confidence(0.6);
-        }
+        .with_suggestion(suggestion_text)
+        .with_confidence(confidence);
 
         if let Some(fix) = fix {
             d = d.with_fix(fix);
@@ -355,6 +384,83 @@ fn has_secret_prefix(s: &str) -> bool {
         || s.starts_with("sq0")    // Square
         || s.starts_with("SG.")    // SendGrid
         || s.starts_with("whsec_") // Stripe webhook
+}
+
+/// Check if string contains 3+ consecutive English dictionary words (Saha et al. 2020).
+/// Indicates text content, not a secret.
+fn contains_dictionary_words(s: &str) -> bool {
+    // Split on whitespace and check if consecutive words are common English
+    let words: Vec<&str> = s.split_whitespace().collect();
+    if words.len() < 3 {
+        return false;
+    }
+    let mut consecutive = 0;
+    for word in &words {
+        let w = word.to_lowercase();
+        let w = w.trim_matches(|c: char| !c.is_alphabetic());
+        if w.len() >= 2 && COMMON_WORDS.contains(&w) {
+            consecutive += 1;
+            if consecutive >= 3 {
+                return true;
+            }
+        } else {
+            consecutive = 0;
+        }
+    }
+    false
+}
+
+const COMMON_WORDS: &[&str] = &[
+    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
+    "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
+    "this", "but", "his", "by", "from", "they", "we", "say", "her",
+    "she", "or", "an", "will", "my", "one", "all", "would", "there",
+    "their", "what", "so", "up", "out", "if", "about", "who", "get",
+    "which", "go", "me", "when", "make", "can", "like", "time", "no",
+    "just", "him", "know", "take", "people", "into", "year", "your",
+    "good", "some", "could", "them", "see", "other", "than", "then",
+    "now", "look", "only", "come", "its", "over", "think", "also",
+    "back", "after", "use", "two", "how", "our", "work", "first",
+    "well", "way", "even", "new", "want", "because", "any", "these",
+    "give", "day", "most", "us", "are", "is", "was", "were", "been",
+    "has", "had", "may", "should", "must", "each", "where", "does",
+    "did", "been", "being", "having", "here", "very", "more", "many",
+    "such", "much", "own", "before", "between", "both", "same", "still",
+    // AI/tech words common in prompts
+    "assistant", "helpful", "response", "generate", "analyze", "provide",
+    "following", "based", "using", "given", "output", "input", "please",
+    "system", "user", "message", "content", "format", "return", "data",
+    "text", "code", "function", "class", "error", "result", "value",
+];
+
+/// Structural suffix exclusion (arxiv 2307.00714).
+/// Variables ending with these suffixes are templates/messages, not secrets.
+fn is_template_suffix(name: &str) -> bool {
+    let upper = name.to_uppercase();
+    upper.ends_with("_PROMPT")
+        || upper.ends_with("_TEMPLATE")
+        || upper.ends_with("_SYSTEM")
+        || upper.ends_with("_MESSAGE")
+        || upper.ends_with("_MSG")
+        || upper.ends_with("_TEXT")
+        || upper.ends_with("_HTML")
+        || upper.ends_with("_CSS")
+        || upper.ends_with("_SQL")
+        || upper.ends_with("_QUERY")
+        || upper.ends_with("_HEADER")
+        || upper.ends_with("_FOOTER")
+        || upper.ends_with("_BODY")
+        || upper.ends_with("_CONTENT")
+        || upper.ends_with("_DESCRIPTION")
+        || upper.ends_with("_INSTRUCTIONS")
+        || upper.ends_with("_SCHEMA")
+        || upper.ends_with("_FORMAT")
+        || upper.ends_with("_EXAMPLE")
+        || upper.ends_with("_PATTERN")
+        || upper.ends_with("_REGEX")
+        || upper.ends_with("_SCORE")
+        || upper.ends_with("_USER")
+        || upper.ends_with("_AGENT")
 }
 
 fn make_environ_ref(var_name: &str) -> String {
