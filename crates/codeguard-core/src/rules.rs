@@ -61,6 +61,7 @@ pub const VC007: &str = "VC007";
 pub const VC008: &str = "VC008";
 pub const VC009: &str = "VC009";
 pub const VC010: &str = "VC010";
+pub const VC011: &str = "VC011";
 
 pub fn all_rules() -> Vec<RuleInfo> {
     vec![
@@ -176,6 +177,12 @@ pub fn all_rules() -> Vec<RuleInfo> {
             code: RuleCode::new(VC010),
             name: "source-map-full-source",
             description: "Source map contains full sourcesContent (complete source disclosure)",
+            fixable: false,
+        },
+        RuleInfo {
+            code: RuleCode::new(VC011),
+            name: "secret-leak",
+            description: "Secret variable leaked to print/logging sink (taint analysis)",
             fixable: false,
         },
     ]

@@ -1,4 +1,5 @@
 pub mod project;
+pub mod taint;
 
 use codeguard_ast::{extract_file_info, FileInfo};
 use codeguard_core::diagnostic::TextEdit;

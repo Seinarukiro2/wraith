@@ -1,4 +1,5 @@
 pub mod extract;
+pub mod import_graph;
 pub mod line_index;
 pub mod parser;
 pub mod symbols;

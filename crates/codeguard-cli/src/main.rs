@@ -223,6 +223,7 @@ fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat, include_t
 
             if run_vc {
                 diags.extend(codeguard_vibe::lint_vibe(tree, source, path));
+                diags.extend(codeguard_vibe::taint::check_taint(tree, source, path));
             }
 
             if let Some(ref ph) = phantom {
