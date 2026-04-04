@@ -12,12 +12,50 @@ pub use checker::PackageStatus;
 
 pub struct PhantomLinter {
     checker: checker::PackageChecker,
+    local_packages: HashSet<String>,
 }
 
 impl PhantomLinter {
     pub fn new(config: &codeguard_core::Config) -> anyhow::Result<Self> {
         let checker = checker::PackageChecker::new(config)?;
-        Ok(Self { checker })
+        Ok(Self {
+            checker,
+            local_packages: HashSet::new(),
+        })
+    }
+
+    /// Scan project root for local Python packages (directories with __init__.py
+    /// or directories that match common source layouts like src/).
+    pub fn detect_local_packages(&mut self, project_root: &Path) {
+        if let Ok(entries) = std::fs::read_dir(project_root) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    // Directory with __init__.py = Python package
+                    if path.join("__init__.py").exists() {
+                        self.local_packages.insert(name.clone());
+                    }
+                    // Common source layouts: src/, lib/, app/ containing Python files
+                    if matches!(name.as_str(), "src" | "lib" | "app") {
+                        self.local_packages.insert(name.clone());
+                    }
+                }
+            }
+        }
+        // Also check for packages inside src/ layout
+        let src_dir = project_root.join("src");
+        if src_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&src_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() && path.join("__init__.py").exists() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        self.local_packages.insert(name);
+                    }
+                }
+            }
+        }
     }
 
     /// Collect unique package names from a file
@@ -52,6 +90,11 @@ impl PhantomLinter {
 
             // Skip stdlib modules
             if is_stdlib(pkg) {
+                continue;
+            }
+
+            // Skip local packages (directories in project root)
+            if self.local_packages.contains(pkg.as_str()) {
                 continue;
             }
 

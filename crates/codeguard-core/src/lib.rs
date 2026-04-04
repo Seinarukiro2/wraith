@@ -1,5 +1,6 @@
 pub mod config;
 pub mod diagnostic;
+pub mod noqa;
 pub mod reporter;
 pub mod rules;
 #[cfg(test)]

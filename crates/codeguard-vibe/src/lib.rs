@@ -82,6 +82,24 @@ fn check_hardcoded_secrets(info: &FileInfo, diags: &mut Vec<Diagnostic>) {
             continue;
         }
 
+        // Skip f-strings (formatted strings with interpolation — not literal secrets)
+        if value.starts_with("f\"") || value.starts_with("f'") {
+            continue;
+        }
+
+        // Skip variables that are clearly previews/masks of secrets, not secrets themselves
+        let target_lower = assign.target.to_lowercase();
+        if target_lower.contains("preview")
+            || target_lower.contains("mask")
+            || target_lower.contains("redact")
+            || target_lower.contains("truncat")
+            || target_lower.contains("snippet")
+            || target_lower.contains("display")
+            || target_lower.contains("_repr")
+        {
+            continue;
+        }
+
         // Check 1: variable name matches secret pattern (original VC001)
         let name_match = SECRET_NAME_RE.is_match(&assign.target);
 

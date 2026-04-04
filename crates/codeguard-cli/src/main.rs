@@ -152,7 +152,16 @@ fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat) -> Result
 
     let phantom = if run_ph {
         match codeguard_phantom::PhantomLinter::new(config) {
-            Ok(ph) => {
+            Ok(mut ph) => {
+                // Detect local packages to avoid false positives
+                let project_root = paths
+                    .first()
+                    .and_then(|p| {
+                        if p.is_dir() { Some(p.clone()) } else { p.parent().map(|pp| pp.to_path_buf()) }
+                    })
+                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+                ph.detect_local_packages(&project_root);
+
                 let mut all_packages = Vec::new();
                 for (path, source, tree) in &parsed {
                     all_packages.extend(ph.collect_packages(tree, source, path));
@@ -216,6 +225,13 @@ fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat) -> Result
 
             // Filter by selected rules
             diags.retain(|d| config.is_rule_enabled(&d.code.0));
+
+            // Filter by # noqa inline suppression
+            let noqa_map = codeguard_core::noqa::build_noqa_map(source);
+            diags.retain(|d| {
+                !codeguard_core::noqa::is_suppressed(&noqa_map, d.span.start_line, &d.code.0)
+            });
+
             diags
         })
         .collect();
