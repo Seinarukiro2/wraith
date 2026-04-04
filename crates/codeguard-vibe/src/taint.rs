@@ -197,8 +197,13 @@ fn is_secret_name_bigram(name: &str) -> bool {
     }
 
     // If has sensitive word, check if neutralized by config context
-    let has_config_modifier = segments.iter().any(|s| CONFIG_MODIFIERS.contains(s));
-    let has_config_noun = segments.iter().any(|s| CONFIG_NOUNS.contains(s));
+    static MOD_SET: once_cell::sync::Lazy<std::collections::HashSet<&str>> =
+        once_cell::sync::Lazy::new(|| CONFIG_MODIFIERS.iter().copied().collect());
+    static NOUN_SET: once_cell::sync::Lazy<std::collections::HashSet<&str>> =
+        once_cell::sync::Lazy::new(|| CONFIG_NOUNS.iter().copied().collect());
+
+    let has_config_modifier = segments.iter().any(|s| MOD_SET.contains(s));
+    let has_config_noun = segments.iter().any(|s| NOUN_SET.contains(s));
 
     if has_config_modifier || has_config_noun {
         return false; // e.g., "max_tokens", "token_count", "key_length"

@@ -398,7 +398,7 @@ fn contains_dictionary_words(s: &str) -> bool {
     for word in &words {
         let w = word.to_lowercase();
         let w = w.trim_matches(|c: char| !c.is_alphabetic());
-        if w.len() >= 2 && COMMON_WORDS.contains(&w) {
+        if w.len() >= 2 && COMMON_WORDS_SET.contains(&*w) {
             consecutive += 1;
             if consecutive >= 3 {
                 return true;
@@ -409,6 +409,9 @@ fn contains_dictionary_words(s: &str) -> bool {
     }
     false
 }
+
+static COMMON_WORDS_SET: Lazy<std::collections::HashSet<&str>> =
+    Lazy::new(|| COMMON_WORDS.iter().copied().collect());
 
 const COMMON_WORDS: &[&str] = &[
     "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",

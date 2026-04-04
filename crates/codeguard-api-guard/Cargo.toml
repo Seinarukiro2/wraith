@@ -11,3 +11,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 strsim = { workspace = true }
 anyhow = { workspace = true }
+once_cell = { workspace = true }

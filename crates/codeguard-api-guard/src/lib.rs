@@ -340,8 +340,11 @@ impl ApiGuardLinter {
 }
 
 fn is_python_builtin(name: &str) -> bool {
-    PYTHON_BUILTINS.contains(&name)
+    BUILTINS_SET.contains(name)
 }
+
+static BUILTINS_SET: once_cell::sync::Lazy<std::collections::HashSet<&str>> =
+    once_cell::sync::Lazy::new(|| PYTHON_BUILTINS.iter().copied().collect());
 
 const PYTHON_BUILTINS: &[&str] = &[
     "abs", "all", "any", "ascii", "bin", "bool", "breakpoint", "bytearray",

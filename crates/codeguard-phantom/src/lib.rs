@@ -175,11 +175,14 @@ impl PhantomLinter {
 }
 
 fn is_stdlib(module: &str) -> bool {
-    STDLIB_MODULES.contains(&module)
+    STDLIB_SET.contains(module)
 }
 
+static STDLIB_SET: once_cell::sync::Lazy<std::collections::HashSet<&str>> =
+    once_cell::sync::Lazy::new(|| STDLIB_MODULES.iter().copied().collect());
+
 fn is_typing_stub(module: &str) -> bool {
-    module.starts_with('_') && module != "_thread" && module != "__future__"
+    (module.starts_with('_') && module != "_thread" && module != "__future__")
         || TYPING_STUBS.contains(&module)
 }
 
