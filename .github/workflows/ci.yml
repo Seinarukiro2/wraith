@@ -21,7 +21,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --exclude codeguard-python
-      - run: cargo clippy --workspace --exclude codeguard-python -- -D warnings -A clippy::manual_char_comparison -A clippy::unnecessary_map_or
+      - run: cargo clippy --workspace --exclude codeguard-python -- -W clippy::all
 
   fmt:
     name: Format
