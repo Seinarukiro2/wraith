@@ -262,7 +262,7 @@ fn extract_call(node: Node, source: &str, path: &Path, idx: &LineIndex, info: &m
             let obj_node = f.child_by_field_name("object");
             let obj = obj_node.map(|n| node_text(n, source));
             // Check if object is a plain identifier vs call/subscript/literal
-            let obj_is_name = obj_node.map_or(false, |n| {
+            let obj_is_name = obj_node.is_some_and(|n| {
                 n.kind() == "identifier"
                     || n.kind() == "dotted_name"
                     || (n.kind() == "attribute" && is_identifier_chain(n, source))
@@ -423,7 +423,7 @@ fn extract_decorated_definition(
 fn is_identifier_chain(node: Node, _source: &str) -> bool {
     match node.kind() {
         "identifier" => true,
-        "attribute" => node.child_by_field_name("object").map_or(false, |obj| {
+        "attribute" => node.child_by_field_name("object").is_some_and(|obj| {
             obj.kind() == "identifier"
                 || (obj.kind() == "attribute" && is_identifier_chain(obj, _source))
         }),

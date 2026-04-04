@@ -64,7 +64,7 @@ fn collect_tainted_names(info: &FileInfo) -> HashSet<String> {
 
     for assign in &info.assignments {
         let target_lower = assign.target.to_lowercase();
-        let is_env_source = assign.value.as_ref().map_or(false, |v| {
+        let is_env_source = assign.value.as_ref().is_some_and(|v| {
             v.contains("os.environ") || v.contains("os.getenv") || v.contains("getenv(")
         });
 
@@ -73,7 +73,7 @@ fn collect_tainted_names(info: &FileInfo) -> HashSet<String> {
 
         // Level 2: Entropy check on value (if string literal)
         let value_is_high_entropy = assign.value_is_string
-            && assign.value.as_ref().map_or(false, |v| {
+            && assign.value.as_ref().is_some_and(|v| {
                 let unquoted = v
                     .trim_start_matches(|c: char| c == '\'' || c == '\"' || c == 'f')
                     .trim_end_matches(|c: char| c == '\'' || c == '\"');

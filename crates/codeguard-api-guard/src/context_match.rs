@@ -124,7 +124,7 @@ pub fn check_extension_match(function: &str, filename: &str) -> Option<String> {
     // Only flag if filename actually has a recognizable extension
     let has_any_ext = lower
         .rfind('.')
-        .map_or(false, |pos| pos > 0 && pos < lower.len() - 1);
+        .is_some_and(|pos| pos > 0 && pos < lower.len() - 1);
     if !has_any_ext {
         return None;
     }

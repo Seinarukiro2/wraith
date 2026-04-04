@@ -263,7 +263,7 @@ fn check_source_maps(root: &Path, dir: &Path, diags: &mut Vec<Diagnostic>) {
             continue;
         }
 
-        if path.extension().map_or(false, |e| e == "map") {
+        if path.extension().is_some_and(|e| e == "map") {
             // Parse .map file as JSON, check for sourcesContent
             let rel = path.strip_prefix(root).unwrap_or(&path);
             if let Ok(content) = std::fs::read_to_string(&path) {

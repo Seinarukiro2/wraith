@@ -86,14 +86,14 @@ impl SymbolTable {
     pub fn is_import(&self, name: &str) -> bool {
         self.bindings
             .get(name)
-            .map_or(false, |bs| bs.iter().any(|b| b.kind.is_import()))
+            .is_some_and(|bs| bs.iter().any(|b| b.kind.is_import()))
     }
 
     /// Check if a name was ever bound as a non-import (local variable, parameter, etc.)
     pub fn is_local(&self, name: &str) -> bool {
         self.bindings
             .get(name)
-            .map_or(false, |bs| bs.iter().any(|b| !b.kind.is_import()))
+            .is_some_and(|bs| bs.iter().any(|b| !b.kind.is_import()))
     }
 
     /// Check if a name is bound at all (any scope).
@@ -106,7 +106,7 @@ impl SymbolTable {
     /// - It's at module scope (depth 0) — always visible, OR
     /// - Its enclosing scope range contains line L
     pub fn is_visible_at(&self, name: &str, at_line: u32) -> bool {
-        self.bindings.get(name).map_or(false, |bs| {
+        self.bindings.get(name).is_some_and(|bs| {
             bs.iter().any(|b| {
                 // Module-level bindings are always visible
                 b.scope_depth == 0
@@ -120,7 +120,7 @@ impl SymbolTable {
     pub fn is_bound_at_module_scope(&self, name: &str) -> bool {
         self.bindings
             .get(name)
-            .map_or(false, |bs| bs.iter().any(|b| b.scope_depth == 0))
+            .is_some_and(|bs| bs.iter().any(|b| b.scope_depth == 0))
     }
 
     /// Get all bindings for a name.

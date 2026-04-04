@@ -104,7 +104,7 @@ fn path_to_module(path: &Path, root: &Path) -> String {
     }
 
     // Remove __init__ (package init files)
-    if parts.last().map_or(false, |p| *p == "__init__") {
+    if parts.last().is_some_and(|p| *p == "__init__") {
         parts.pop();
     }
 

@@ -54,7 +54,7 @@ impl PhantomLinter {
                 if matches!(name.as_str(), "src" | "lib" | "app") {
                     self.local_packages.insert(name.clone());
                 }
-            } else if path.extension().map_or(false, |e| e == "py") {
+            } else if path.extension().is_some_and(|e| e == "py") {
                 // Flat layout: {name}.py = local module
                 let module_name = name.trim_end_matches(".py").to_string();
                 if module_name != "__init__"

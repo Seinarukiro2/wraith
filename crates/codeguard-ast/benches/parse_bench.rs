@@ -13,7 +13,7 @@ fn collect_py_files(dir: &str) -> Vec<(PathBuf, String)> {
                     if !name.starts_with('.') && name != "__pycache__" && name != "node_modules" {
                         walk(&path, files);
                     }
-                } else if path.extension().map_or(false, |e| e == "py") {
+                } else if path.extension().is_some_and(|e| e == "py") {
                     if let Ok(source) = std::fs::read_to_string(&path) {
                         files.push((path, source));
                     }

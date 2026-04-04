@@ -406,7 +406,7 @@ fn discover_files(paths: &[PathBuf], include_tests: bool) -> Result<Vec<PathBuf>
     let mut files = Vec::new();
     for path in paths {
         if path.is_file() {
-            if path.extension().map_or(false, |e| e == "py") {
+            if path.extension().is_some_and(|e| e == "py") {
                 if include_tests || !is_test_file(path) {
                     files.push(path.clone());
                 }
@@ -467,7 +467,7 @@ fn walk_dir(dir: &PathBuf, files: &mut Vec<PathBuf>, include_tests: bool) -> Res
 
         if path.is_dir() {
             walk_dir(&path, files, include_tests)?;
-        } else if path.extension().map_or(false, |e| e == "py") {
+        } else if path.extension().is_some_and(|e| e == "py") {
             files.push(path);
         }
     }
