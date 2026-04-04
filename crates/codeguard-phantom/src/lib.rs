@@ -135,7 +135,7 @@ impl PhantomLinter {
                     } else {
                         d = d.with_suggestion("possible slopsquatting target".to_string());
                     }
-                    diagnostics.push(d);
+                    diagnostics.push(d.with_confidence(0.85));
                 }
                 PackageStatus::NotInstalled => {
                     diagnostics.push(
@@ -157,7 +157,7 @@ impl PhantomLinter {
                     if let Some(s) = self.checker.suggest_similar(pkg) {
                         d = d.with_suggestion(format!("did you mean '{s}'?"));
                     }
-                    diagnostics.push(d);
+                    diagnostics.push(d.with_confidence(0.5));
                 }
                 PackageStatus::Safe | PackageStatus::Stdlib => {}
                 PackageStatus::Unknown(msg) => {

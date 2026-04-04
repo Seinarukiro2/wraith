@@ -139,6 +139,12 @@ fn check_hardcoded_secrets(info: &FileInfo, diags: &mut Vec<Diagnostic>) {
         )
         .with_suggestion(suggestion_text);
 
+        if prefix_match {
+            d = d.with_confidence(0.95);
+        } else if !name_match && entropy_match {
+            d = d.with_confidence(0.6);
+        }
+
         if let Some(fix) = fix {
             d = d.with_fix(fix);
         }

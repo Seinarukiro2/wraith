@@ -57,6 +57,8 @@ pub struct Diagnostic {
     pub message: String,
     pub suggestion: Option<String>,
     pub fix: Option<TextEdit>,
+    /// Confidence score 0.0-1.0. Higher = more certain this is a real issue.
+    pub confidence: f64,
 }
 
 impl Diagnostic {
@@ -68,6 +70,7 @@ impl Diagnostic {
             message: message.into(),
             suggestion: None,
             fix: None,
+            confidence: 0.9,
         }
     }
 
@@ -79,6 +82,7 @@ impl Diagnostic {
             message: message.into(),
             suggestion: None,
             fix: None,
+            confidence: 0.7,
         }
     }
 
@@ -90,11 +94,17 @@ impl Diagnostic {
             message: message.into(),
             suggestion: None,
             fix: None,
+            confidence: 0.5,
         }
     }
 
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
+        self
+    }
+
+    pub fn with_confidence(mut self, confidence: f64) -> Self {
+        self.confidence = confidence;
         self
     }
 

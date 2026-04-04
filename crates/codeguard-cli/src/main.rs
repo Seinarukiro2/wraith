@@ -51,6 +51,10 @@ enum Commands {
         #[arg(long)]
         include_tests: bool,
 
+        /// Minimum confidence threshold (0.0-1.0, default 0.0 = show all)
+        #[arg(long, default_value = "0.0")]
+        min_confidence: f64,
+
         /// Output format (text, json, or sarif)
         #[arg(long, default_value = "text")]
         format: String,
@@ -79,6 +83,7 @@ fn main() -> Result<()> {
             verbose,
             offline,
             include_tests,
+            min_confidence,
             format,
             config: config_path,
         } => {
@@ -102,12 +107,12 @@ fn main() -> Result<()> {
 
             let output_format: OutputFormat = format.parse().unwrap_or(OutputFormat::Text);
 
-            run_check(&config, &paths, output_format, include_tests)
+            run_check(&config, &paths, output_format, include_tests, min_confidence)
         }
     }
 }
 
-fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat, include_tests: bool) -> Result<()> {
+fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat, include_tests: bool, min_confidence: f64) -> Result<()> {
     // 1. Discover .py files
     let files = discover_files(paths, include_tests)?;
     if files.is_empty() {
@@ -236,6 +241,11 @@ fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat, include_t
             diags.retain(|d| {
                 !codeguard_core::noqa::is_suppressed(&noqa_map, d.span.start_line, &d.code.0)
             });
+
+            // Filter by confidence threshold
+            if min_confidence > 0.0 {
+                diags.retain(|d| d.confidence >= min_confidence);
+            }
 
             diags
         })
