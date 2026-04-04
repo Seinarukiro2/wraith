@@ -305,8 +305,8 @@ fn extract_call(node: Node, source: &str, path: &Path, idx: &LineIndex, info: &m
                     if positional_count == 0 && child.kind() == "string" {
                         let raw = node_text(child, source);
                         let unquoted = raw
-                            .trim_start_matches(|c: char| c == '\'' || c == '\"')
-                            .trim_end_matches(|c: char| c == '\'' || c == '\"');
+                            .trim_start_matches(['\'', '\"'])
+                            .trim_end_matches(['\'', '\"']);
                         first_string_arg = Some(unquoted.to_string());
                         first_arg_span = Some(idx.span_from_node(child, path));
                     }

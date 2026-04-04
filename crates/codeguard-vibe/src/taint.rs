@@ -75,8 +75,8 @@ fn collect_tainted_names(info: &FileInfo) -> HashSet<String> {
         let value_is_high_entropy = assign.value_is_string
             && assign.value.as_ref().is_some_and(|v| {
                 let unquoted = v
-                    .trim_start_matches(|c: char| c == '\'' || c == '\"' || c == 'f')
-                    .trim_end_matches(|c: char| c == '\'' || c == '\"');
+                    .trim_start_matches(['\'', '\"', 'f'])
+                    .trim_end_matches(['\'', '"']);
                 unquoted.len() >= 8 && shannon_entropy(unquoted) > 3.5
             });
 

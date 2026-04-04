@@ -71,8 +71,8 @@ fn check_hardcoded_secrets(info: &FileInfo, diags: &mut Vec<Diagnostic>) {
         }
         let value = assign.value.as_deref().unwrap_or("");
         let unquoted = value
-            .trim_start_matches(|c: char| c == '\'' || c == '\"')
-            .trim_end_matches(|c: char| c == '\'' || c == '\"');
+            .trim_start_matches(['\'', '\"'])
+            .trim_end_matches(['\'', '\"']);
         if unquoted.is_empty() || unquoted == "None" || value.contains("os.") {
             continue;
         }
