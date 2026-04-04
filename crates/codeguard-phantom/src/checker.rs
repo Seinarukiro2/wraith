@@ -36,7 +36,7 @@ impl PackageChecker {
             Some(
                 reqwest::blocking::Client::builder()
                     .timeout(std::time::Duration::from_secs(10))
-                    .user_agent("codeguard/0.1.0")
+                    .user_agent("wraith/0.1.0")
                     .build()?,
             )
         };

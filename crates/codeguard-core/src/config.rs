@@ -23,7 +23,7 @@ pub struct Config {
 impl Config {
     pub fn cache_dir(&self) -> PathBuf {
         self.cache_dir.clone().unwrap_or_else(|| {
-            dirs_or_default().join("codeguard")
+            dirs_or_default().join("wraith")
         })
     }
 
@@ -64,8 +64,9 @@ impl Config {
 
     pub fn discover(project_root: &Path) -> Self {
         let candidates = [
-            project_root.join("codeguard.toml"),
-            project_root.join(".codeguard.toml"),
+            project_root.join("wraith.toml"),
+            project_root.join(".wraith.toml"),
+            project_root.join("codeguard.toml"),  // backwards compat
         ];
         for path in &candidates {
             if path.exists() {

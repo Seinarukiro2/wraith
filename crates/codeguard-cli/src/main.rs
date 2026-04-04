@@ -11,23 +11,23 @@ use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(
-    name = "codeguard",
+    name = "wraith",
     version,
     about = "Deterministic linter for AI-generated Python code",
-    long_about = "codeguard — deterministic linter for AI-generated Python code.\n\n\
+    long_about = "wraith — deterministic linter for AI-generated Python code.\n\n\
         Detects hallucinated APIs, phantom packages, hardcoded secrets,\n\
         AI artifacts, and supply chain risks. 20 rules, zero config.\n\n\
         Quick start:\n  \
-          codeguard check .                  # scan current directory\n  \
-          codeguard check . --fix --diff     # preview fixes\n  \
-          codeguard check . --fix            # apply fixes\n  \
-          codeguard rules                    # list all rules",
+          wraith check .                  # scan current directory\n  \
+          wraith check . --fix --diff     # preview fixes\n  \
+          wraith check . --fix            # apply fixes\n  \
+          wraith rules                    # list all rules",
     after_help = "Examples:\n  \
-        codeguard check src/\n  \
-        codeguard check . --select AG,VC001\n  \
-        codeguard check . --fix --diff\n  \
-        codeguard check . --offline --min-confidence 0.8\n  \
-        codeguard check . --format sarif > report.sarif"
+        wraith check src/\n  \
+        wraith check . --select AG,VC001\n  \
+        wraith check . --fix --diff\n  \
+        wraith check . --offline --min-confidence 0.8\n  \
+        wraith check . --format sarif > report.sarif"
 )]
 struct Cli {
     #[command(subcommand)]

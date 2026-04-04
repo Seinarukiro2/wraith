@@ -85,7 +85,7 @@ fn check_source_impl(py: Python<'_>, source: &str, filename: &str) -> PyResult<V
 }
 
 #[pymodule]
-fn codeguard(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn wraith(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(check, m)?)?;
     m.add_function(wrap_pyfunction!(check_source, m)?)?;
     m.add_function(wrap_pyfunction!(fix, m)?)?;

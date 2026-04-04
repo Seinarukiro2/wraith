@@ -7,7 +7,7 @@ members = [
     "crates/codeguard-phantom",
     "crates/codeguard-vibe",
     "crates/codeguard-cli",
-    "python/codeguard",
+    "python/wraith",
 ]
 default-members = [
     "crates/codeguard-core",

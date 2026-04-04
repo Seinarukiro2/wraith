@@ -179,9 +179,9 @@ fn format_sarif(diagnostics: &[Diagnostic]) -> String {
         "runs": [{
             "tool": {
                 "driver": {
-                    "name": "codeguard",
+                    "name": "wraith",
                     "version": env!("CARGO_PKG_VERSION"),
-                    "informationUri": "https://github.com/codeguard/codeguard",
+                    "informationUri": "https://github.com/Seinarukiro2/codeguard",
                     "rules": rules
                 }
             },
