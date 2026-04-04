@@ -50,42 +50,162 @@ pub fn check_taint(tree: &Tree, source: &str, path: &Path) -> Vec<Diagnostic> {
 }
 
 /// Collect names of variables that hold secret/sensitive data.
+/// Three-level approach inspired by Argus (arXiv 2512.08326):
+///   Level 1: regex on variable name (bigram classification)
+///   Level 2: entropy threshold on value (Gitleaks/TruffleHog approach)
+///   Level 3: source analysis (os.environ → only if value is high-entropy or name is secret)
 fn collect_tainted_names(info: &FileInfo) -> HashSet<String> {
     let mut tainted = HashSet::new();
 
     for assign in &info.assignments {
-        // Source 1: os.environ["X"], os.environ.get("X"), os.getenv("X")
-        if let Some(ref val) = assign.value {
-            if val.contains("os.environ") || val.contains("os.getenv") || val.contains("getenv(") {
-                tainted.insert(assign.target.clone());
-                continue;
-            }
-        }
-
-        // Source 2: variable name matches secret pattern
         let target_lower = assign.target.to_lowercase();
-        if is_secret_name(&target_lower) {
+        let is_env_source = assign.value.as_ref().map_or(false, |v| {
+            v.contains("os.environ") || v.contains("os.getenv") || v.contains("getenv(")
+        });
+
+        // Level 1: Bigram classification on variable name segments
+        let name_is_secret = is_secret_name_bigram(&target_lower);
+
+        // Level 2: Entropy check on value (if string literal)
+        let value_is_high_entropy = assign.value_is_string
+            && assign.value.as_ref().map_or(false, |v| {
+                let unquoted = v
+                    .trim_start_matches(|c: char| c == '\'' || c == '\"' || c == 'f')
+                    .trim_end_matches(|c: char| c == '\'' || c == '\"');
+                unquoted.len() >= 8 && shannon_entropy(unquoted) > 3.5
+            });
+
+        // Decision matrix (Argus-inspired three-level):
+        // Level 1: secret name from env → taint (api_key = os.environ["API_KEY"])
+        // Level 2: secret name + string literal → taint (password = "secret123")
+        // Level 3: env source + non-secret name + high entropy value → taint
+        // Skip: env source + config name (PORT, TIMEZONE, MAX_TOKENS)
+        // Skip: string literal without secret name
+        if name_is_secret && (is_env_source || assign.value_is_string) {
+            tainted.insert(assign.target.clone());
+        } else if is_env_source && !name_is_secret && value_is_high_entropy {
+            // Unknown env var with high-entropy value — might be secret
             tainted.insert(assign.target.clone());
         }
     }
 
-    // Source 3: function parameters with secret-like names
-    // (would need symbol table integration for full support)
-
     tainted
 }
 
-fn is_secret_name(name: &str) -> bool {
-    name.contains("secret")
-        || name.contains("password")
-        || name.contains("passwd")
-        || name.contains("api_key")
-        || name.contains("apikey")
-        || name.contains("auth_token")
-        || name.contains("access_token")
-        || name.contains("private_key")
-        || name.contains("token") && !name.contains("csrf") && !name.contains("preview")
-        || name.contains("bot_token")
+/// Shannon entropy of a string (bits per character).
+fn shannon_entropy(s: &str) -> f64 {
+    let mut freq = [0u32; 256];
+    let len = s.len() as f64;
+    if len == 0.0 { return 0.0; }
+    for &b in s.as_bytes() {
+        freq[b as usize] += 1;
+    }
+    let mut entropy = 0.0f64;
+    for &count in &freq {
+        if count > 0 {
+            let p = count as f64 / len;
+            entropy -= p * p.log2();
+        }
+    }
+    entropy
+}
+
+/// Bigram classification on variable name segments.
+/// Splits name by _ and checks if segment pairs indicate a secret vs config.
+/// "api_key" → (api, key) → SECRET
+/// "max_tokens" → (max, tokens) → CONFIG (skip)
+/// "access_token" → (access, token) → SECRET
+/// "token_count" → (token, count) → CONFIG (skip)
+fn is_secret_name_bigram(name: &str) -> bool {
+    let segments: Vec<&str> = name.split('_').collect();
+
+    // Single-word checks (exact matches only)
+    if segments.len() == 1 {
+        return matches!(
+            segments[0],
+            "password" | "passwd" | "secret" | "credential" | "credentials"
+        );
+    }
+
+    // Secret-indicating bigrams: (modifier, noun) pairs
+    const SECRET_BIGRAMS: &[(&str, &str)] = &[
+        ("api", "key"),
+        ("api", "secret"),
+        ("api", "token"),
+        ("access", "key"),
+        ("access", "token"),
+        ("access", "secret"),
+        ("secret", "key"),
+        ("private", "key"),
+        ("auth", "token"),
+        ("auth", "key"),
+        ("auth", "secret"),
+        ("bot", "token"),
+        ("client", "secret"),
+        ("client", "id"),    // debatable, but often sensitive
+        ("bearer", "token"),
+        ("refresh", "token"),
+        ("session", "token"),
+        ("session", "secret"),
+        ("signing", "key"),
+        ("encryption", "key"),
+        ("master", "key"),
+        ("db", "password"),
+        ("database", "password"),
+        ("jwt", "secret"),
+        ("jwt", "key"),
+        ("webhook", "secret"),
+        ("stripe", "key"),
+        ("openai", "key"),
+        ("anthropic", "key"),
+    ];
+
+    // Config-indicating segments that neutralize "token"
+    const CONFIG_MODIFIERS: &[&str] = &[
+        "max", "min", "num", "count", "total", "default", "timeout",
+        "limit", "size", "length", "retry", "poll", "interval",
+        "batch", "chunk", "page", "per",
+    ];
+
+    const CONFIG_NOUNS: &[&str] = &[
+        "count", "limit", "size", "length", "timeout", "interval",
+        "retries", "attempts", "path", "dir", "directory", "folder",
+        "file", "name", "host", "port", "url", "uri", "endpoint",
+        "version", "level", "mode", "type", "format", "encoding",
+        "timezone", "locale", "region", "zone", "env", "environment",
+        "prefix", "suffix", "separator", "delimiter",
+        "processed", "remaining", "used", "available", "capacity",
+    ];
+
+    // Check all adjacent segment pairs
+    for pair in segments.windows(2) {
+        let (a, b) = (pair[0], pair[1]);
+
+        // Check if pair is a known secret bigram
+        if SECRET_BIGRAMS.iter().any(|(sa, sb)| a == *sa && b == *sb) {
+            return true;
+        }
+    }
+
+    // Check if name contains "token" or "secret" or "password"
+    let has_sensitive_word = segments.iter().any(|s| {
+        matches!(*s, "token" | "secret" | "password" | "passwd" | "key" | "credential")
+    });
+
+    if !has_sensitive_word {
+        return false;
+    }
+
+    // If has sensitive word, check if neutralized by config context
+    let has_config_modifier = segments.iter().any(|s| CONFIG_MODIFIERS.contains(s));
+    let has_config_noun = segments.iter().any(|s| CONFIG_NOUNS.contains(s));
+
+    if has_config_modifier || has_config_noun {
+        return false; // e.g., "max_tokens", "token_count", "key_length"
+    }
+
+    // Has sensitive word without config neutralizer → likely secret
+    true
 }
 
 fn is_leak_sink(call: &CallInfo) -> bool {

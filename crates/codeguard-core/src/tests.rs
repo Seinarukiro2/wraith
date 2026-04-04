@@ -56,7 +56,11 @@ fn test_diagnostic_builders() {
 fn test_config_rule_enabled() {
     let mut config = Config::default();
     assert!(config.is_rule_enabled("AG001")); // all enabled by default
-    assert!(config.is_rule_enabled("VC003"));
+    assert!(!config.is_rule_enabled("VC003")); // pedantic rule — off by default
+
+    config.pedantic = true;
+    assert!(config.is_rule_enabled("VC003")); // pedantic on → enabled
+    config.pedantic = false;
 
     config.select = Some(vec!["AG".to_string()]);
     assert!(config.is_rule_enabled("AG001"));

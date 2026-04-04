@@ -89,7 +89,7 @@ def search_github_repos(query: str, count: int, page: int = 1) -> list[dict]:
                 "updated_at": r.get("updated_at", ""),
             }
             for r in items
-            if r.get("language") == "Python" and r.get("size", 0) < 100_000  # skip huge repos
+            if r.get("language") == "Python" and r.get("size", 0) < 50_000  # skip repos > 50MB
         ]
     except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
         print(f"  search error: {e}", file=sys.stderr)
@@ -123,15 +123,23 @@ def collect_repos(count: int, existing_names: set[str]) -> list[dict]:
     return repos[:count]
 
 
-def clone_repo(clone_url: str, dest: str, timeout: int = 60) -> bool:
+def clone_repo(clone_url: str, dest: str, timeout: int = 30) -> bool:
     """Shallow clone a repo. Returns True on success."""
     try:
         subprocess.run(
             ["git", "clone", "--depth", "1", "--single-branch", clone_url, dest],
             capture_output=True, timeout=timeout,
         )
-        return os.path.isdir(dest)
+        if not os.path.isdir(dest):
+            return False
+        # Check size after clone — abort if > 200MB on disk
+        total = sum(f.stat().st_size for f in Path(dest).rglob("*") if f.is_file())
+        if total > 200_000_000:
+            shutil.rmtree(dest, ignore_errors=True)
+            return False
+        return True
     except subprocess.TimeoutExpired:
+        shutil.rmtree(dest, ignore_errors=True)
         return False
 
 
