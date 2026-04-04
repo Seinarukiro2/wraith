@@ -61,10 +61,8 @@ fn format_text(diagnostics: &[Diagnostic]) -> String {
             } else {
                 ""
             };
-            let pad = " ".repeat(padding_len);
             out.push_str(&format!(
-                "{} {} {}{}\n",
-                pad,
+                "  {} {}{}\n",
                 "\u{2192}".cyan(),
                 suggestion,
                 fixable_marker.green(),
@@ -77,13 +75,22 @@ fn format_text(diagnostics: &[Diagnostic]) -> String {
     }
 
     if !diagnostics.is_empty() {
-        out.push_str(&format!(
-            "\nFound {} issue{} ({} auto-fixable). Run with {} to apply.\n",
-            diagnostics.len(),
-            if diagnostics.len() == 1 { "" } else { "s" },
-            fixable_count,
-            "--fix".bold(),
-        ));
+        let count = diagnostics.len();
+        if fixable_count > 0 {
+            out.push_str(&format!(
+                "\nFound {} issue{} ({} auto-fixable). Run with {} to apply.\n",
+                count,
+                if count == 1 { "" } else { "s" },
+                fixable_count,
+                "--fix".bold(),
+            ));
+        } else {
+            out.push_str(&format!(
+                "\nFound {} issue{}.\n",
+                count,
+                if count == 1 { "" } else { "s" },
+            ));
+        }
     }
 
     out
