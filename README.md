@@ -1,8 +1,8 @@
 # wraith
 
-*Catches what your AI forgot to check.*
+An extremely fast AI code linter, written in Rust.
 
-Deterministic linter for AI-generated Python code. Detects hallucinated APIs, phantom packages, hardcoded secrets, AI artifacts, and supply chain risks.
+*Catches what your AI forgot to check* — hallucinated APIs, phantom packages, hardcoded secrets, AI artifacts, and supply chain risks.
 
 ## Install
 
