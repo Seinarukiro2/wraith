@@ -103,6 +103,11 @@ impl PhantomLinter {
                 continue;
             }
 
+            // Skip type-checking-only stubs
+            if is_typing_stub(pkg) {
+                continue;
+            }
+
             // Skip local packages (directories in project root)
             if self.local_packages.contains(pkg.as_str()) {
                 continue;
@@ -167,6 +172,15 @@ impl PhantomLinter {
 fn is_stdlib(module: &str) -> bool {
     STDLIB_MODULES.contains(&module)
 }
+
+fn is_typing_stub(module: &str) -> bool {
+    module.starts_with('_') && module != "_thread" && module != "__future__"
+        || TYPING_STUBS.contains(&module)
+}
+
+const TYPING_STUBS: &[&str] = &[
+    "_typeshed", "_collections_abc", "_operator", "_decimal",
+];
 
 const STDLIB_MODULES: &[&str] = &[
     "abc", "aifc", "argparse", "array", "ast", "asynchat", "asyncio", "asyncore",

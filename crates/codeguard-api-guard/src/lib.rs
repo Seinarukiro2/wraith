@@ -247,6 +247,10 @@ impl ApiGuardLinter {
             if from_imported.contains(&call.function) {
                 continue;
             }
+            // Skip if name is bound in symbol table (parameter, local var, etc.)
+            if symtable.is_bound(&call.function) {
+                continue;
+            }
             // Skip builtins
             if is_python_builtin(&call.function) {
                 continue;

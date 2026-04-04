@@ -32,6 +32,19 @@ pub fn import_to_package_map() -> HashMap<&'static str, &'static str> {
     m.insert("OpenSSL", "pyOpenSSL");
     m.insert("Bio", "biopython");
     m.insert("wx", "wxPython");
+    m.insert("typing_extensions", "typing-extensions");
+    m.insert("importlib_metadata", "importlib-metadata");
+    m.insert("importlib_resources", "importlib-resources");
+    m.insert("async_timeout", "async-timeout");
+    m.insert("google_auth_oauthlib", "google-auth-oauthlib");
+    m.insert("ruamel", "ruamel.yaml");
+    m.insert("pkg_resources", "setuptools");
+    m.insert("setuptools", "setuptools");
+    m.insert("distutils", "setuptools");
+    m.insert("markupsafe", "MarkupSafe");
+    m.insert("itsdangerous", "itsdangerous");
+    m.insert("werkzeug", "Werkzeug");
+    m.insert("jinja2", "Jinja2");
     m
 }
 

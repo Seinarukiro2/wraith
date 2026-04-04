@@ -7,7 +7,7 @@ use codeguard_core::rules;
 use codeguard_core::Diagnostic;
 use colored::Colorize;
 use rayon::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(
@@ -47,7 +47,11 @@ enum Commands {
         #[arg(long)]
         offline: bool,
 
-        /// Output format (text or json)
+        /// Include test files (tests/, test_*.py, *_test.py, conftest.py)
+        #[arg(long)]
+        include_tests: bool,
+
+        /// Output format (text, json, or sarif)
         #[arg(long, default_value = "text")]
         format: String,
 
@@ -74,6 +78,7 @@ fn main() -> Result<()> {
             strict,
             verbose,
             offline,
+            include_tests,
             format,
             config: config_path,
         } => {
@@ -97,14 +102,14 @@ fn main() -> Result<()> {
 
             let output_format: OutputFormat = format.parse().unwrap_or(OutputFormat::Text);
 
-            run_check(&config, &paths, output_format)
+            run_check(&config, &paths, output_format, include_tests)
         }
     }
 }
 
-fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat) -> Result<()> {
+fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat, include_tests: bool) -> Result<()> {
     // 1. Discover .py files
-    let files = discover_files(paths)?;
+    let files = discover_files(paths, include_tests)?;
     if files.is_empty() {
         if config.verbose {
             eprintln!("No Python files found.");
@@ -254,13 +259,23 @@ fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat) -> Result
             .then(a.code.0.cmp(&b.code.0))
     });
 
-    // 7. Apply fixes if requested
+    // 7. Separate offline-unverified PH002 from real diagnostics
+    let (offline_unverified, real_diagnostics): (Vec<_>, Vec<_>) = if config.offline {
+        diagnostics.into_iter().partition(|d| {
+            d.code.0 == "PH002" && d.message.contains("unable to verify")
+        })
+    } else {
+        (vec![], diagnostics)
+    };
+    let mut diagnostics = real_diagnostics;
+
+    // 8. Apply fixes if requested
     if config.fix {
         apply_fixes(&parsed, &diagnostics)?;
     }
 
-    // 8. Report
-    if diagnostics.is_empty() {
+    // 9. Report
+    if diagnostics.is_empty() && offline_unverified.is_empty() {
         if config.verbose {
             eprintln!("{}", "All checks passed!".green());
         }
@@ -270,23 +285,56 @@ fn run_check(config: &Config, paths: &[PathBuf], format: OutputFormat) -> Result
     let output = format_diagnostics(&diagnostics, format);
     print!("{output}");
 
-    // 9. Exit code
-    if config.strict {
+    // Offline summary (one line instead of N individual PH002)
+    if !offline_unverified.is_empty() {
+        let mut pkgs: Vec<String> = offline_unverified
+            .iter()
+            .filter_map(|d| {
+                d.message
+                    .strip_prefix("import \"")
+                    .and_then(|s| s.split('"').next())
+                    .map(|s| s.to_string())
+            })
+            .collect();
+        pkgs.sort();
+        pkgs.dedup();
+        if config.verbose {
+            eprintln!(
+                "{} {} package{} not verified (offline mode): {}",
+                "Note:".yellow().bold(),
+                pkgs.len(),
+                if pkgs.len() == 1 { "" } else { "s" },
+                pkgs.join(", "),
+            );
+        } else {
+            eprintln!(
+                "{} {} package{} not verified (offline mode, run without --offline to check)",
+                "Note:".yellow().bold(),
+                pkgs.len(),
+                if pkgs.len() == 1 { "" } else { "s" },
+            );
+        }
+    }
+
+    // 10. Exit code
+    if config.strict && !diagnostics.is_empty() {
         std::process::exit(1);
     }
 
     Ok(())
 }
 
-fn discover_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
+fn discover_files(paths: &[PathBuf], include_tests: bool) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     for path in paths {
         if path.is_file() {
             if path.extension().map_or(false, |e| e == "py") {
-                files.push(path.clone());
+                if include_tests || !is_test_file(path) {
+                    files.push(path.clone());
+                }
             }
         } else if path.is_dir() {
-            walk_dir(path, &mut files)?;
+            walk_dir(path, &mut files, include_tests)?;
         }
     }
     files.sort();
@@ -294,7 +342,27 @@ fn discover_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn walk_dir(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
+fn is_test_file(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    if name == "conftest.py" || name.starts_with("test_") || name.ends_with("_test.py") {
+        return true;
+    }
+    // Check if any parent directory is a test directory
+    for component in path.components() {
+        if let std::path::Component::Normal(s) = component {
+            let s = s.to_string_lossy();
+            if s == "tests" || s == "test" || s == "testing" {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn walk_dir(dir: &PathBuf, files: &mut Vec<PathBuf>, include_tests: bool) -> Result<()> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -313,10 +381,17 @@ fn walk_dir(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
             {
                 continue;
             }
+            // Skip test directories unless --include-tests
+            if !include_tests
+                && (name == "tests" || name == "test" || name == "testing")
+                && path.is_dir()
+            {
+                continue;
+            }
         }
 
         if path.is_dir() {
-            walk_dir(&path, files)?;
+            walk_dir(&path, files, include_tests)?;
         } else if path.extension().map_or(false, |e| e == "py") {
             files.push(path);
         }
