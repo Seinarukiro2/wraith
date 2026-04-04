@@ -204,25 +204,19 @@ fn collect_bindings(node: Node, source: &str, table: &mut SymbolTable) {
 
         // except E as X:
         "except_clause" => {
-            // tree-sitter: (except_clause (as_pattern value: ... alias: (identifier)))
             let mut cursor = node.walk();
             for child in node.children(&mut cursor) {
                 if child.kind() == "as_pattern" {
-                    if let Some(alias) = child.child_by_field_name("alias") {
-                        if alias.kind() == "identifier" {
-                            table.add(
-                                text(alias, source),
-                                BindingKind::ExceptTarget,
-                                line(alias),
-                            );
+                    // Look for as_pattern_target (same pattern as with_statement)
+                    let mut inner = child.walk();
+                    for c in child.children(&mut inner) {
+                        if c.kind() == "as_pattern_target" {
+                            collect_target_names(c, source, BindingKind::ExceptTarget, table);
                         }
                     }
-                }
-                // Also handle direct `except Exception as e:` pattern
-                if child.kind() == "identifier" {
-                    let prev = child.prev_named_sibling();
-                    if prev.map_or(false, |p| text(p, source) == "as" || p.kind() != "identifier") {
-                        // This might be the alias after `as`
+                    // Fallback: try field name
+                    if let Some(alias) = child.child_by_field_name("alias") {
+                        collect_target_names(alias, source, BindingKind::ExceptTarget, table);
                     }
                 }
             }

@@ -196,7 +196,11 @@ impl ApiGuardLinter {
         } // end if !cache.is_empty()
 
         // AG006: contextual mismatch (file extension vs function semantics)
+        // Only check qualified calls (pd.read_csv, json.load) — not bare load()
         for call in &info.calls {
+            if !call.receiver_is_name || call.receiver.is_none() {
+                continue;
+            }
             if let Some(ref filename) = call.first_string_arg {
                 if let Some(mismatch) = context_match::check_extension_match(&call.function, filename) {
                     let correct_func = suggest_correct_function(&call.function, filename);
