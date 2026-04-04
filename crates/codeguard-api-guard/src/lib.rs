@@ -295,7 +295,8 @@ impl ApiGuardLinter {
             if let Some(ref receiver) = call.receiver {
                 let top = receiver.split('.').next().unwrap_or(receiver);
 
-                // Skip if name is bound anywhere in this file (import, local, param, etc.)
+                // Skip if name is bound anywhere in the file (as import, param, local, etc.)
+                // Any binding means this is a known name, not a missing import.
                 if symtable.is_bound(top) {
                     continue;
                 }
