@@ -1,0 +1,32 @@
+# Rust
+/target/
+**/*.rs.bk
+*.d
+
+# Python
+*.pyo
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.so
+*.dylib
+*.dll
+*.whl
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Codeguard cache
+.codeguard_cache/
+
+# OS
+Thumbs.db

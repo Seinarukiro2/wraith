@@ -1,0 +1,24 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "codeguard"
+version = "0.1.0"
+description = "Deterministic linter for AI-generated Python code"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["linter", "ai", "code-quality", "hallucination", "python"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[tool.maturin]
+manifest-path = "python/codeguard/Cargo.toml"
+features = ["pyo3/extension-module"]
+python-source = "python"

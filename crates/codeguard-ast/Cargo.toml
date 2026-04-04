@@ -1,0 +1,10 @@
+[package]
+name = "codeguard-ast"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+codeguard-core = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-python = { workspace = true }
+once_cell = { workspace = true }

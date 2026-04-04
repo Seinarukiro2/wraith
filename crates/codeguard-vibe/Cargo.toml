@@ -1,0 +1,11 @@
+[package]
+name = "codeguard-vibe"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+codeguard-core = { workspace = true }
+codeguard-ast = { workspace = true }
+tree-sitter = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }

@@ -1,0 +1,21 @@
+[package]
+name = "codeguard-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "codeguard"
+path = "src/main.rs"
+
+[dependencies]
+codeguard-core = { workspace = true }
+codeguard-ast = { workspace = true }
+codeguard-api-guard = { workspace = true }
+codeguard-phantom = { workspace = true }
+codeguard-vibe = { workspace = true }
+tree-sitter = { workspace = true }
+clap = { workspace = true }
+rayon = { workspace = true }
+anyhow = { workspace = true }
+colored = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,13 @@
+[package]
+name = "codeguard-api-guard"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+codeguard-core = { workspace = true }
+codeguard-ast = { workspace = true }
+tree-sitter = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+strsim = { workspace = true }
+anyhow = { workspace = true }
