@@ -65,10 +65,11 @@ impl Config {
     }
 
     pub fn discover(project_root: &Path) -> Self {
+        // 1. Standalone config files
         let candidates = [
             project_root.join("wraith.toml"),
             project_root.join(".wraith.toml"),
-            project_root.join("codeguard.toml"), // backwards compat
+            project_root.join("codeguard.toml"),
         ];
         for path in &candidates {
             if path.exists() {
@@ -77,7 +78,25 @@ impl Config {
                 }
             }
         }
+        // 2. [tool.wraith] in pyproject.toml
+        let pyproject = project_root.join("pyproject.toml");
+        if pyproject.exists() {
+            if let Ok(config) = Self::load_from_pyproject(&pyproject) {
+                return config;
+            }
+        }
         Self::default()
+    }
+
+    fn load_from_pyproject(path: &Path) -> anyhow::Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        let doc: toml::Value = toml::from_str(&content)?;
+        let tool_wraith = doc
+            .get("tool")
+            .and_then(|t| t.get("wraith"))
+            .ok_or_else(|| anyhow::anyhow!("no [tool.wraith] section"))?;
+        let config: Config = tool_wraith.clone().try_into()?;
+        Ok(config)
     }
 }
 
